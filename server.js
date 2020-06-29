@@ -72,7 +72,7 @@ MongoClient.connect( processEnv.MONGODB_URI || '', {useUnifiedTopology: true} ).
 	const subsController = require('./controllers/subscriptions');
 	const managersController = require('./controllers/managers');
 	const smtpController = require('./controllers/sendsmtp');
-
+	const adminController = require('./controllers/admin');
 	
 
 	/**
@@ -158,6 +158,34 @@ MongoClient.connect( processEnv.MONGODB_URI || '', {useUnifiedTopology: true} ).
 		smtpController.flushCacheSMTP,
 		subsController.flushCache);
 	
+	
+	app.get('/api/v1/mailing/manage',
+		// UserAuth
+		bodyParser.urlencoded({extended:true, limit: '250k'}),
+		adminController.v_mailingManage);
+	app.post('/api/v1/mailing/create',
+		// UserAuth
+		bodyParser.urlencoded({extended:true, limit: '250k'}),
+		adminController.v_mailingCreate);
+	app.get('/api/v1/mailing/:mailingid/edit',
+		// UserAuth
+		bodyParser.urlencoded({extended:true, limit: '250k'}),
+		adminController.v_mailingEdit);
+	app.post('/api/v1/mailing/:mailingid/edit',
+		// UserAuth
+		bodyParser.urlencoded({extended:true, limit: '1024k'}),
+		adminController.v_mailingSave);
+	
+	app.get('/api/v1/mailing/:mailingid/approval',
+		// UserAuth
+		adminController.v_mailingApproval);
+	app.get('/api/v1/mailing/:mailingid/approved',
+		// UserAuth
+		adminController.v_mailingApproved);
+	app.get('/api/v1/mailing/:mailingid/sendToSubs',
+		// UserAuth
+		adminController.v_mailingSendToSub);
+	
 	/**
 	 * SMTP Mail routes.
 	 */
@@ -210,6 +238,15 @@ MongoClient.connect( processEnv.MONGODB_URI || '', {useUnifiedTopology: true} ).
 		});
 	//}); 
 }).catch( (e) => { console.log( "%s MongoDB ERRROR: %s", chalk.red('✗'), e ) } );
+
+// yep
+
+	
+process.once('SIGUSR2', function () {
+  console.log( "+++++++++++++++++++ restart +++++++++++");
+    process.kill(process.pid, 'SIGUSR2');
+  
+});
 
 module.exports = app;
 

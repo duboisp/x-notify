@@ -3,7 +3,7 @@ FROM node:12-slim
 ARG NODE_ENV=development
 ENV NODE_ENV=${NODE_ENV}
 
-WORKDIR ./
+WORKDIR ./x-notify/
 
 COPY package*.json ./
 

@@ -176,6 +176,9 @@ MongoClient.connect( processEnv.MONGODB_URI || '', {useUnifiedTopology: true} ).
 		bodyParser.urlencoded({extended:true, limit: '1024k'}),
 		adminController.v_mailingSave);
 	
+	app.get('/api/v1/mailing/:mailingid/history',
+		// UserAuth
+		adminController.v_mailingHistory);
 	app.get('/api/v1/mailing/:mailingid/approval',
 		// UserAuth
 		adminController.v_mailingApproval);

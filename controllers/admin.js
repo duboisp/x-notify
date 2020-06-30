@@ -72,7 +72,7 @@ exports.v_mailingManage = async ( req, res, next ) => {
 
 	const mustacheData = Object.assign( {}, { topics: topics }, { mailings: mailings } );
 	
-	console.log( mustacheData );
+	//console.log( mustacheData );
 
 	// Show a list of mailingID
 	
@@ -160,6 +160,20 @@ exports.v_mailingCreate = async ( req, res, next ) => {
 	next();
 }
 
+exports.v_mailingHistory = async ( req, res, next ) => {
+
+ 
+	const mailingId = req.params.mailingid;
+		
+		// Save the mailing
+		let history = await mailingGetHistory( mailingId );
+		
+		// Render the page
+		res.status( 200 ).send( await renderTemplate( "mailingHistory.html", { history : history } ) );
+		
+
+}
+
 exports.v_mailingSave = async ( req, res, next ) => {
 	// Save the draft email
 	// Set state to "draft"
@@ -168,7 +182,7 @@ exports.v_mailingSave = async ( req, res, next ) => {
 		const mailingid = req.params.mailingid,
 			isSaveAndTest = req.body.action;
 		
-		console.log( req.body );
+		// console.log( req.body );
 		
 		// Save the mailing
 		let mailing = {};
@@ -345,8 +359,20 @@ async function mailingView ( paramMailingId ) {
 	}
 }
 
-async function mailingHistory ( req, res, next ) {
-	// Input: MailingID
+async function mailingGetHistory ( mailingId ) {
+	// Get all history for the given mailingId
+
+	const rDoc = await dbConn.collection( "mailingHistory" ).find( 
+		{
+			mailingId: ObjectId( mailingId )
+		},
+		{
+			sort: {
+				createdAt: -1
+			}
+		});
+	
+	return rDoc.toArray();
 }
 
 /* ========================
@@ -363,54 +389,14 @@ async function mailingSave ( mailingId, title, subject, body, comments ) {
 	// Save the draft email
 	// Set state to "draft"
 	
-	const currDate = new Date();
-	
-	// Create the history item
-	let history = 
-		{
-			//historyId: "", //ref to mailing_history corresponding record
-			state: _mailingState.draft,
-			createdAt: currDate
-		}
-	if ( comments ) {
-		history.comments = comments;
-	}
-	
-	// Create the historyEntry
-	let rInsert = await dbConn.collection( "history" ).insertOne( 
-		Object.assign( {},
-			history,
-			{
-				mailingId: ObjectId( mailingId )
-			}
-		)
-	);
-
-	history.historyId = rInsert.insertedId;
-	
-	const rDoc = await dbConn.collection( "mailing" ).updateOne( 
-		{
-			_id: ObjectId( mailingId )
-		},
-		{
+	const rDoc = await mailingUpdate( mailingId, _mailingState.draft, {
+			comments: comments,
 			$set: {
 				title: title,
 				subject: subject,
 				body: body,
-				state: _mailingState.draft
-			},
-			$push: {
-				history: {
-					$each: [ history ],
-					$slice: -7,
-				}
-			},
-			$currentDate: { 
-				updatedAt: true
 			}
-			
-		}
-	);
+		} );
 	
 	return mailingView( mailingId );
 }
@@ -437,129 +423,20 @@ async function mailingApproval ( mailingId ) {
 	// Send a test email to the predefined list of emails
 	// Set state to "completed"
 	
-	const currDate = new Date();
-	
-	// Create the history item
-	let history = 
-		{
-			state: _mailingState.completed,
-			createdAt: currDate
-		}
-	
-	// Create the historyEntry
-	let rInsert = await dbConn.collection( "history" ).insertOne( 
-		Object.assign( {},
-			history,
-			{
-				mailingId: ObjectId( mailingId )
-			}
-		)
-	);
+	const rDoc = await mailingUpdate( mailingId, _mailingState.completed );
 
-	history.historyId = rInsert.insertedId;
-	
-	const rDoc = await dbConn.collection( "mailing" ).findOneAndUpdate( 
-		{
-			_id: ObjectId( mailingId )
-		},
-		{
-			$set: {
-				state: _mailingState.completed
-			},
-			$push: {
-				history: {
-					$each: [ history ],
-					$slice: -7,
-				}
-			},
-			$currentDate: { 
-				updatedAt: true
-			}
-			
-		}
-	);
 	
 	// Send the mailing to the "approval email list"
-	mailingSendToApproval( rDoc.value );
+	mailingSendToApproval( rDoc );
 }
 
 async function mailingApproved ( mailingId ) {
 	// Need to be in current state "completed"
 	// Set state to "approved"
 	
-	const currDate = new Date();
-	
-	// Create the history item
-	let history = 
-		{
-			state: _mailingState.approved,
-			createdAt: currDate
-		}
-	
-	// Create the historyEntry
-	let rInsert = await dbConn.collection( "history" ).insertOne( 
-		Object.assign( {},
-			history,
-			{
-				mailingId: ObjectId( mailingId )
-			}
-		)
-	);
+	await mailingUpdate( mailingId, _mailingState.approved, { historyState: _mailingState.completed } );
 
-	history.historyId = rInsert.insertedId;
-	
-	const rDoc = await dbConn.collection( "mailing" ).updateOne( 
-		{
-			_id: ObjectId( mailingId ),
-			state: _mailingState.completed
-		},
-		{
-			$set: {
-				state: _mailingState.approved
-			},
-			$push: {
-				history: {
-					$each: [ history ],
-					$slice: -7,
-				}
-			},
-			$currentDate: { 
-				updatedAt: true
-			}
-			
-		}
-	);
-	
-	
-	// Check if the operation was successful, if not, we need to log in the history
-	if ( !rDoc.modifiedCount ) {
-	
-		history = {
-			createdAt: currDate,
-			state: _mailingState.completed,
-			comments: "Approbation fail",
-			mailingId: ObjectId( mailingId )
-		};
-		
-		dbConn.collection( "history" ).insertOne( 
-			history
-		);
-		dbConn.collection( "mailing" ).findOneAndUpdate( 
-			{
-				_id: ObjectId( mailingId ),
-				state: _mailingState.completed
-			},
-			{
-				$push: {
-					history: {
-						$each: [ history ],
-						$slice: -7,
-					}
-				}
-				
-			}
-		);
-	}
+	return true;
 	
 }
 
@@ -592,67 +469,16 @@ async function mailingSendToApproval( mailingInfo ) {
 async function mailingSendToSub ( mailingId ) {
 	// Need to be in current state "approved"
 
-	mailingUpdateHistory( mailingId, _mailingState.sending, _mailingState.approved );
+	const rDoc = await mailingUpdate( mailingId, _mailingState.sending, { historyState: _mailingState.approved } );
 	
-	const currDate = new Date();
-	
-	// Create the history item
-	let history = 
-		{
-			state: _mailingState.sending,
-			createdAt: currDate
-		}
-	
-	// Create the historyEntry
-	let rInsert = await dbConn.collection( "history" ).insertOne( 
-		Object.assign( {},
-			history,
-			{
-				mailingId: ObjectId( mailingId )
-			}
-		)
-	);
 
-	history.historyId = rInsert.insertedId;
-	
-	// Change state tot "sending"
-	const rDoc = await dbConn.collection( "mailing" ).findOneAndUpdate( 
-		{
-			_id: ObjectId( mailingId ),
-			state: _mailingState.approved
-		},
-		{
-			$set: {
-				state: _mailingState.sending
-			},
-			$push: {
-				history: {
-					$each: [ history ],
-					$slice: -7,
-				}
-			},
-			$currentDate: { 
-				updatedAt: true
-			}
-			
-		}
-	);
-	
-	// Check if the operation was successful, if not, we need to log in the history
-	if ( !rDoc.value ) {
-		dbConn.collection( "history" ).insertOne( 
-			{
-				createdAt: currDate,
-				state: _mailingState.approved,
-				comments: "Sending fail",
-				mailingId: ObjectId( mailingId )
-			}
-		);
+	// Check if the operation was successful, if not we know the error is already logged
+	if ( !rDoc ) {
 		return true;
 	}
 	
 	// Do the sending
-	sendMailingToSubs( mailingId, rDoc.value.topicId, rDoc.value.subject, rDoc.value.body );
+	sendMailingToSubs( mailingId, rDoc.topicId, rDoc.subject, rDoc.body );
 	
 	
 	// When completed, change state to "sent"
@@ -660,7 +486,14 @@ async function mailingSendToSub ( mailingId ) {
 }
 
 // Update an history item for the mailing
-async function mailingUpdateHistory( mailingId, newHistoryState, historyState, comments ) {
+async function mailingUpdate( mailingId, newHistoryState, options ) {
+
+	// If option is undefined
+	options = options || {};
+	
+	const historyState = options.historyState || false,
+		comments = options.comments || false
+		$set = options.$set || {};
 
 	const currDate = new Date();
 	
@@ -675,7 +508,7 @@ async function mailingUpdateHistory( mailingId, newHistoryState, historyState, c
 	}
 	
 	// Create the historyEntry
-	let rInsert = await dbConn.collection( "history" ).insertOne( 
+	let rInsert = await dbConn.collection( "mailingHistory" ).insertOne( 
 		Object.assign( {},
 			history,
 			{
@@ -690,14 +523,15 @@ async function mailingUpdateHistory( mailingId, newHistoryState, historyState, c
 		_id: ObjectId( mailingId )
 	};
 	if ( historyState ) {
-		findQuery.state: historyState
+		findQuery.state = historyState
 	}
 	const rDoc = await dbConn.collection( "mailing" ).findOneAndUpdate( 
 		findQuery,
 		{
-			$set: {
-				state: newHistoryState
-			},
+			$set: Object.assign( {}, $set, {
+					state: newHistoryState
+				}
+			),
 			$push: {
 				history: {
 					$each: [ history ],
@@ -721,7 +555,7 @@ async function mailingUpdateHistory( mailingId, newHistoryState, historyState, c
 			mailingId: ObjectId( mailingId )
 		};
 		
-		const rInsertFail = dbConn.collection( "history" ).insertOne( 
+		const rInsertFail = dbConn.collection( "mailingHistory" ).insertOne( 
 			historyFail
 		);
 		historyFail.historyId = rInsertFail.insertedId;
@@ -772,7 +606,7 @@ async function sendMailingToSubs ( mailingId, topicId, mailingSubject, mailingBo
 		
 		if ( msg.completed ) {
 			
-			
+			mailingUpdate( mailingId, _mailingState.sent, { historyState: _mailingState.sending } );
 			
 			// Change the status of the mailing and mark it completed
 			console.log( "Send to subs - Completed: " + mailingId );

@@ -102,8 +102,8 @@ async function init() {
 	 */
 	let notifyClient = new NotifyClient( _notifyEndPoint, notifyKey );
 
-	console.log( "_notifyEndPoint: " + _notifyEndPoint );
-	console.log( "notifyKey: " + notifyKey );
+	//console.log( "_notifyEndPoint: " + _notifyEndPoint );
+	//console.log( "notifyKey: " + notifyKey );
 	
 	let i, i_len = listEmail.length, i_cache;
 	for( i = 0; i !== i_len; i++) {
@@ -114,7 +114,7 @@ async function init() {
 		
 		const userCodeUrl = ( subscode.id ? subscode.toHexString() : subscode );
 		
-		console.log( "Worker: Send for : " + email );
+		//console.log( "Worker: Send for : " + email );
 
 		if ( !email ) {
 			continue;
@@ -123,12 +123,12 @@ async function init() {
 		parentPort.postMessage( { msg: "Send for : " + email } );
 		
 		
-		console.log( "templateId: " + templateId );
-		console.log( "email: " + email );
-		console.log( "subject: " + mailingSubject );
-		console.log( "body: " + mailingBody );
-		console.log( "unsub_link: " + _unsubBaseURL + userCodeUrl + "/" + _subsLinkSuffix );
-		console.log( "reference: " + "x-notify_" + typeMailing );
+		//console.log( "templateId: " + templateId );
+		//console.log( "email: " + email );
+		//console.log( "subject: " + mailingSubject );
+		//console.log( "body: " + mailingBody );
+		//console.log( "unsub_link: " + _unsubBaseURL + userCodeUrl + "/" + _subsLinkSuffix );
+		//console.log( "reference: " + "x-notify_" + typeMailing );
 		
 		notifyClient.sendEmail( templateId, email, 
 		{

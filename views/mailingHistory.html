@@ -1,0 +1,23 @@
+<!DOCTYPE html> 
+<html lang="en"> 
+	<head> 
+		<title>Mailing history</title>
+
+	</head> 
+	<body>
+	<h1>Mailing history</h1>
+	
+	<nav>
+		<p><a href="edit">Go back to the mailing</a></p>
+	</nav>
+	
+		<dl>
+			{{#history}}
+				<dt>{{ createdAt }} - {{ state }}</dt>
+				{{#comments}}
+					<dd>{{.}}</dd>
+				{{/comments}}
+			{{/history}}
+		</dl>
+	</body> 
+</html>

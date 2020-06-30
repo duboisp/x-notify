@@ -55,7 +55,9 @@
 				<label for="txtBody">Email body content</label>
 				<textarea class="form-control" id="txtBody" name="body" rows="20" cols="200">{{#body}}{{.}}{{/body}}</textarea>
 			</div>
-
+	
+	{{! Don't show any button when the sending to subscribers occrus }}
+	{{! ^showCancelSend}}
 			<div class="form-group">
 				<label for="comments">Editorial comments</label>
 				<textarea class="form-control" id="comments" name="comments" rows="3" cols="200"></textarea>
@@ -79,7 +81,7 @@
 			{{^showCancelSend}}
 			{{/showCancelSend}}
 		{{/body}}
-		
+	{{! /showCancelSend}}
 		</form>
 
 

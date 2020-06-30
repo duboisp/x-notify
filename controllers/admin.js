@@ -592,6 +592,7 @@ async function mailingSendToApproval( mailingInfo ) {
 async function mailingSendToSub ( mailingId ) {
 	// Need to be in current state "approved"
 
+	mailingUpdateHistory( mailingId, _mailingState.sending, _mailingState.approved );
 	
 	const currDate = new Date();
 	
@@ -658,6 +659,97 @@ async function mailingSendToSub ( mailingId ) {
 	
 }
 
+// Update an history item for the mailing
+async function mailingUpdateHistory( mailingId, newHistoryState, historyState, comments ) {
+
+	const currDate = new Date();
+	
+	// Create the history item
+	let history = 
+		{
+			state: newHistoryState,
+			createdAt: currDate
+		}
+	if ( comments ) {
+		history.comments = comments;
+	}
+	
+	// Create the historyEntry
+	let rInsert = await dbConn.collection( "history" ).insertOne( 
+		Object.assign( {},
+			history,
+			{
+				mailingId: ObjectId( mailingId )
+			}
+		)
+	);
+	history.historyId = rInsert.insertedId;
+	
+	// Update the mailing
+	let findQuery = {
+		_id: ObjectId( mailingId )
+	};
+	if ( historyState ) {
+		findQuery.state: historyState
+	}
+	const rDoc = await dbConn.collection( "mailing" ).findOneAndUpdate( 
+		findQuery,
+		{
+			$set: {
+				state: newHistoryState
+			},
+			$push: {
+				history: {
+					$each: [ history ],
+					$slice: -7,
+				}
+			},
+			$currentDate: { 
+				updatedAt: true
+			}
+			
+		}
+	);
+	
+	// Check if the operation was successful, if not, we need to log in the history
+	if ( !rDoc.ok ) {
+	
+		let historyFail = {
+			createdAt: currDate,
+			state: historyState || _mailingState.draft, // Put it back as draft if previous state is unknown
+			comments: newHistoryState + " fail",
+			mailingId: ObjectId( mailingId )
+		};
+		
+		const rInsertFail = dbConn.collection( "history" ).insertOne( 
+			historyFail
+		);
+		historyFail.historyId = rInsertFail.insertedId;
+		
+		dbConn.collection( "mailing" ).findOneAndUpdate( 
+			{
+				_id: ObjectId( mailingId ),
+				state: newHistoryState
+			},
+			{
+				$set: {
+					state: historyState || _mailingState.draft // Put it back as draft if previous state is unknown
+				},
+				$push: {
+					history: {
+						$each: [ historyFail ],
+						$slice: -7,
+					}
+				}
+				
+			}
+		);
+	}
+	
+	// Send the mailing to the "approval email list"
+	return rDoc.value;
+}
+
 
 // Simple worker to send mailing
 async function sendMailingToSubs ( mailingId, topicId, mailingSubject, mailingBody ) {
@@ -679,6 +771,9 @@ async function sendMailingToSubs ( mailingId, topicId, mailingSubject, mailingBo
 	worker.on('message', function(msg){
 		
 		if ( msg.completed ) {
+			
+			
+			
 			// Change the status of the mailing and mark it completed
 			console.log( "Send to subs - Completed: " + mailingId );
 		}

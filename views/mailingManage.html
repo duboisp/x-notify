@@ -6,6 +6,9 @@
 	<body>
 	<h1>Mailing manager</h1>
 	
+	<nav>
+		<p style="text-align:right; padding-right:50px;"><a href="logout">Logout</a></p>
+	</nav>
 	{{#error}}
 		<p style="color:red">{{.}}</p>
 	{{/error}}
@@ -36,7 +39,7 @@
 			<th>Last updated</th>
 			<th>Mailing name</th>
 			<th>State</th>
-			<th>Action</th>
+			<!-- <th>Action</th> -->
 		</thead>
 		<tbody>
 			{{#mailings}}
@@ -44,9 +47,11 @@
 					<td>{{ updatedAt }}{{^ updatedAt }}{{ createdAt }}{{/ updatedAt }}</th>
 					<th><a href="{{ _id }}/edit">{{ topicId }} - {{ title }}</a></th>
 					<td>{{ state }}</th>
+					<!--
 					<td>
 						<a href="{{ _id }}/delete">Delete</a>
 					</td>
+					-->
 				</tr>
 			{{/mailings}}
 		</tbody>

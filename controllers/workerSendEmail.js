@@ -56,7 +56,7 @@ async function init() {
 				notifyKey: 1,
 			} 
 		} ).catch( (e) => {
-			console.log( "getTopic" );
+			console.log( "worker-getTopic" );
 			console.log( e );
 			throw new Error( "Worker: Can find the topic: " +  topicId );
 		});
@@ -120,7 +120,7 @@ async function init() {
 			continue;
 		}
 	
-		parentPort.postMessage( { msg: "Send for : " + email } );
+		//parentPort.postMessage( { msg: "Send for : " + email } );
 		
 		
 		//console.log( "templateId: " + templateId );
@@ -140,8 +140,10 @@ async function init() {
 			reference: "x-notify_" + typeMailing
 		}).catch( ( e ) => {
 			// Log the Notify errors
-			console.log( "Error in Notify" );
-			console.log( e );
+			// console.log( "Error in Notify" );
+			// console.log( e );
+			
+			parentPort.postMessage( { msg: "worker-Error in Notify" } );
 			
 			const currDate = new Date(),
 				currDateTime = currDate.getTime(),
@@ -178,7 +180,7 @@ async function init() {
 						email: email
 					}
 				).catch( (e2) => {
-					console.log( "sendNotifyConfirmEmail: notify_badEmail_logs: " + confirmCode );
+					console.log( "worker-sendNotifyConfirmEmail: notify_badEmail_logs: " + confirmCode );
 					console.log( e2 );
 					console.log( e );
 				});
@@ -197,7 +199,7 @@ async function init() {
 						details: msg
 					}
 				).catch( (e2) => {
-					console.log( "sendNotifyConfirmEmail: notify_tooManyReq_logs: " + confirmCode );
+					console.log( "worker-sendNotifyConfirmEmail: notify_tooManyReq_logs: " + confirmCode );
 					console.log( e2 );
 					console.log( e );
 				});
@@ -236,14 +238,14 @@ async function init() {
 						code: confirmCode
 					}
 				).catch( (e2) => {
-					console.log( "sendNotifyConfirmEmail: notify_logs: " + confirmCode );
+					console.log( "worker-sendNotifyConfirmEmail: notify_logs: " + confirmCode );
 					console.log( e2 );
 					console.log( e );
 				});
 				
 			}
 		
-			console.log( "sendNotifyConfirmEmail: sendEmail " + confirmCode );
+			console.log( "worker-sendNotifyConfirmEmail: sendEmail " + confirmCode );
 		});
 		
 		// after 40, wait 1 second before to send the next 40 emails.
@@ -273,7 +275,6 @@ getConfirmedSubscriberAsArray = async ( topicId ) => {
 		}
 	);
 
-	let csv = '"email address","unsub_link"\r\n';
 	let docsItems = await docs.toArray();
 	
 	return docsItems;

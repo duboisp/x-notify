@@ -45,3 +45,9 @@ topics_details
 		email: "email@example.com",
 		subscode: "---This-Is-For-Approval---"
 	}
+
+user:
+* accessToTopicId: Array of topicID
+* name // User name
+* pass // password
+* email // email

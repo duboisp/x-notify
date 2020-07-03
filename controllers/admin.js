@@ -34,10 +34,6 @@ const _mailingState = {
 
 
 
-
-// For testing + quick dev
-let defaultUserId = "test";
-
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++
  *
@@ -59,13 +55,18 @@ async function renderTemplate( tmplName, data ) {
 /*
  * Management of Mailing
  */
-
 exports.v_mailingManage = async ( req, res, next ) => {
 
-	const userId = req.body.userId || defaultUserId;
+	const userId = req.body.userId;
+	
+	if ( !req.user.accessToTopicId ) {
+		res.status( 401 );
+		res.end();
+		return
+	}
 	
 	// Get the topic ID group the
-	let topics  = await usersGetTopics( userId );
+	let topics = req.user.accessToTopicId;
 	
 	// Show a interface to create mailing + Choice of topicID
 	let mailings = await mailingListing( topics );
@@ -78,8 +79,13 @@ exports.v_mailingManage = async ( req, res, next ) => {
 	
 	res.status( 200 ).send( await renderTemplate( "mailingManage.html",  mustacheData ) );
 }
- 
 
+/*
+ * Mailing login
+ */
+exports.v_mailingLogin = async ( req, res, next ) => {
+	res.status( 200 ).send( await fsPromises.readFile( 'views/' + 'mailingLogin.html', 'UTF-8' ) );
+}
 
 exports.v_mailingEdit = async ( req, res, next ) => {
 	// Input: MailingID
@@ -92,7 +98,9 @@ exports.v_mailingEdit = async ( req, res, next ) => {
 		let mailing = await mailingView( mailingid ),
 			mailingState = mailing.state;
 		
-		let btnControler = {}
+		let btnControler = {
+			showApproved: 1
+		}
 		// Adjust the workflow based on the state
 		// Nothing to do for: mailingState.draft; mailingState.cancelled; mailingState.sent
 
@@ -178,6 +186,12 @@ exports.v_mailingSave = async ( req, res, next ) => {
 	// Save the draft email
 	// Set state to "draft"
 	
+	if ( !req.user.email ) {
+		res.status( 401 );
+		res.end();
+		return
+	}
+	
 	try {
 		const mailingid = req.params.mailingid,
 			isSaveAndTest = req.body.action;
@@ -190,7 +204,7 @@ exports.v_mailingSave = async ( req, res, next ) => {
 		let msg = "Saved"; // status message
 		
 		if ( isSaveAndTest === "saveTest" ) {
-			mailing = await mailingSaveTest( mailingid, req.body.title, req.body.subject, req.body.body, req.body.comments );
+			mailing = await mailingSaveTest( req.user.email, mailingid, req.body.title, req.body.subject, req.body.body, req.body.comments );
 			msg += " and test sent";
 		} else {
 			mailing = await mailingSave( mailingid, req.body.title, req.body.subject, req.body.body, req.body.comments );
@@ -401,7 +415,7 @@ async function mailingSave ( mailingId, title, subject, body, comments ) {
 	return mailingView( mailingId );
 }
 
-async function mailingSaveTest ( mailingId, title, subject, body, comments ) {
+async function mailingSaveTest ( email, mailingId, title, subject, body, comments ) {
 	// Send a test email to the current logged user email
 	// Set state to "draft"
 	
@@ -411,7 +425,7 @@ async function mailingSaveTest ( mailingId, title, subject, body, comments ) {
 	sendMailing( 
 		[
 			{
-				email: "pierre.dubois@servicecanada.gc.ca",
+				email: email,
 				subscode: "mailingSaveAndTest"
 			}
 		], mailingId, rSave.topicId, subject, body );
@@ -434,7 +448,8 @@ async function mailingApproved ( mailingId ) {
 	// Need to be in current state "completed"
 	// Set state to "approved"
 	
-	await mailingUpdate( mailingId, _mailingState.approved, { historyState: _mailingState.completed } );
+	// await mailingUpdate( mailingId, _mailingState.approved, { historyState: _mailingState.completed } ); // To enfore it's current state is completed.
+	await mailingUpdate( mailingId, _mailingState.approved );
 
 	return true;
 	
@@ -444,7 +459,6 @@ async function mailingApproved ( mailingId ) {
 async function mailingSendToApproval( mailingInfo ) {
 
 	// mailingInfo == mailing row
-	console.log( mailingInfo );
 	
 	let tDetails = await dbConn.collection( "topic_details" ).findOne( 
 		{
@@ -458,7 +472,7 @@ async function mailingSendToApproval( mailingInfo ) {
 	);
 	
 	if ( !tDetails || !tDetails.approvers ) {
-		console.log( "No approvals email for : " + mailingInfo.topicId );
+		console.log( "mailingSendToApproval-No approvals email for : " + mailingInfo.topicId );
 		throw new Error( "No approvals email for : " + mailingInfo.topicId );
 	}
 	
@@ -646,59 +660,16 @@ async function sendMailing ( sendToEmails, mailingId, topicId, mailingSubject, m
 		
 		if ( msg.completed ) {
 			// Change the status of the mailing and mark it completed
-			console.log( "Completed: " + mailingId );
+			console.log( "sendMailing - Completed: " + mailingId );
 		}
 		
 		console.log( msg.msg );
 	});
 	
     worker.on('error', function(msg){
-		console.log( "Worker ERRROR: " + msg );
+		console.log( "sendMailing - Worker ERRROR: " + msg );
 	});
 	
-}
-
-
-/*
- * User related function
- *
- */
-
-// Return Array of topic IDs
-async function usersGetTopics ( userId ) {
-	
-	let topics = await dbConn.collection( "users" ).findOne( { name: userId } ) || {};
-	
-	return topics.accessToTopicId || [ ];
-}
-
-async function usersLogin( userId, pass ) {
-
-	return true;
-}
-async function usersCreate( userId, pass ) {
-	
-}
-async function usersChangePass( userId, passOld, passNew ) {
-
-}
-
-
-
-/*
- *
- * Backend send mailing service
- *
- * - We need to be able to threshold the number of email sent
- * - This is per Notify Service which we can extract from the API key
- * - Ideally, we should be able to insert and prioritize "Confirmation email sent" during we send a mailling to subscribers
- *
- * - Explore to use Bull+redis, like in IO
- * - Ideally this is running in a satelite VM with limited ressource that we can replicate
- */
- 
-async function sendANotifyMessage( apiKey, msgPersonalisation, emails ) {
-
 }
 
 

@@ -16,6 +16,8 @@ const path = require('path');
 const chalk = require('chalk'); // To color message in console log 
 
 const passport = require('passport'); // Authentication	 
+const session = require('express-session');
+const MongoStore = require('connect-mongo')(session);
 const BasicStrategy = require('passport-http').BasicStrategy;
 
 const jwt = require('jsonwebtoken'); // JWT Authentication
@@ -73,6 +75,7 @@ MongoClient.connect( processEnv.MONGODB_URI || '', {useUnifiedTopology: true} ).
 	const managersController = require('./controllers/managers');
 	const smtpController = require('./controllers/sendsmtp');
 	const adminController = require('./controllers/admin');
+	const userController = require('./controllers/user');
 	
 
 	/**
@@ -159,34 +162,57 @@ MongoClient.connect( processEnv.MONGODB_URI || '', {useUnifiedTopology: true} ).
 		subsController.flushCache);
 	
 	
+	app.use(session({
+		resave: true,
+		saveUninitialized: true,
+		secret: process.env.SESSION_SECRET || "shhhut",
+		cookie: {
+			maxAge: 1209600000
+		}, // two weeks in milliseconds
+		store: new MongoStore({
+			url: process.env.MONGODB_URI,
+			autoReconnect: true,
+		})
+	}));
+	app.use(passport.initialize());
+	app.use(passport.session());
+	
+	
+	app.get( '/api/v1/mailing/login', adminController.v_mailingLogin );
+	app.get( '/api/v1/mailing/logout', userController.logout );
+	app.post( '/api/v1/mailing/login',
+		bodyParser.urlencoded({extended:true, limit: '50k'}),
+		passport.authenticate('local', { successRedirect: '/api/v1/mailing/manage', failureRedirect: '/api/v1/mailing/login'} ) );
+
+		
 	app.get('/api/v1/mailing/manage',
-		// UserAuth
+		userController.isAuthenticated,
 		bodyParser.urlencoded({extended:true, limit: '250k'}),
 		adminController.v_mailingManage);
 	app.post('/api/v1/mailing/create',
-		// UserAuth
+		userController.isAuthenticated,
 		bodyParser.urlencoded({extended:true, limit: '250k'}),
 		adminController.v_mailingCreate);
 	app.get('/api/v1/mailing/:mailingid/edit',
-		// UserAuth
+		userController.isAuthenticated,
 		bodyParser.urlencoded({extended:true, limit: '250k'}),
 		adminController.v_mailingEdit);
 	app.post('/api/v1/mailing/:mailingid/edit',
-		// UserAuth
+		userController.isAuthenticated,
 		bodyParser.urlencoded({extended:true, limit: '1024k'}),
 		adminController.v_mailingSave);
 	
 	app.get('/api/v1/mailing/:mailingid/history',
-		// UserAuth
+		userController.isAuthenticated,
 		adminController.v_mailingHistory);
 	app.get('/api/v1/mailing/:mailingid/approval',
-		// UserAuth
+		userController.isAuthenticated,
 		adminController.v_mailingApproval);
 	app.get('/api/v1/mailing/:mailingid/approved',
-		// UserAuth
+		userController.isAuthenticated,
 		adminController.v_mailingApproved);
 	app.get('/api/v1/mailing/:mailingid/sendToSubs',
-		// UserAuth
+		userController.isAuthenticated,
 		adminController.v_mailingSendToSub);
 	
 	/**

@@ -12,6 +12,7 @@
 	<h1>Mailing manager</h1>
 	
 	<nav>
+		<p style="text-align:right; padding-right:50px;"><a href="../logout">Logout</a></p>
 		<p><a href="../manage">View all mailing</a></p>
 	</nav>
 	
@@ -58,7 +59,7 @@
 			</div>
 	
 	{{! Don't show any button when the sending to subscribers occrus }}
-	{{! ^showCancelSend}}
+	{{^showCancelSend}}
 			<div class="form-group">
 				<label for="comments">Editorial comments</label>
 				<textarea class="form-control" id="comments" name="comments" rows="3" cols="200"></textarea>
@@ -76,13 +77,13 @@
 					<li><a href="approved">Approve the mailing</a></li>
 				{{/showApproved}}
 				{{#showSendToSubs}}
-					<li><a href="sendToSubs">Send the mailing to all subscribers</a></li>
+					<li style="margin-top:1em;"><a href="sendToSubs">Send the mailing to all subscribers</a></li>
 				{{/showSendToSubs}}
 			</ul>
 			{{^showCancelSend}}
 			{{/showCancelSend}}
 		{{/body}}
-	{{! /showCancelSend}}
+	{{/showCancelSend}}
 		</form>
 
 

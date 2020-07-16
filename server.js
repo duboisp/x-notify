@@ -75,6 +75,7 @@ MongoClient.connect( processEnv.MONGODB_URI || '', {useUnifiedTopology: true} ).
 	const managersController = require('./controllers/managers');
 	const smtpController = require('./controllers/sendsmtp');
 	const adminController = require('./controllers/admin');
+	const mailingController = require('./controllers/mailing_view');
 	const userController = require('./controllers/user');
 	
 
@@ -178,7 +179,7 @@ MongoClient.connect( processEnv.MONGODB_URI || '', {useUnifiedTopology: true} ).
 	app.use(passport.session());
 	
 	
-	app.get( '/api/v1/mailing/login', adminController.v_mailingLogin );
+	app.get( '/api/v1/mailing/login', mailingController.v_mailingLogin );
 	app.get( '/api/v1/mailing/logout', userController.logout );
 	app.post( '/api/v1/mailing/login',
 		bodyParser.urlencoded({extended:true, limit: '50k'}),
@@ -188,32 +189,35 @@ MongoClient.connect( processEnv.MONGODB_URI || '', {useUnifiedTopology: true} ).
 	app.get('/api/v1/mailing/manage',
 		userController.isAuthenticated,
 		bodyParser.urlencoded({extended:true, limit: '250k'}),
-		adminController.v_mailingManage);
+		mailingController.v_mailingManage);
 	app.post('/api/v1/mailing/create',
 		userController.isAuthenticated,
 		bodyParser.urlencoded({extended:true, limit: '250k'}),
-		adminController.v_mailingCreate);
+		mailingController.v_mailingCreate);
 	app.get('/api/v1/mailing/:mailingid/edit',
 		userController.isAuthenticated,
 		bodyParser.urlencoded({extended:true, limit: '250k'}),
-		adminController.v_mailingEdit);
+		mailingController.v_mailingEdit);
 	app.post('/api/v1/mailing/:mailingid/edit',
 		userController.isAuthenticated,
 		bodyParser.urlencoded({extended:true, limit: '1024k'}),
-		adminController.v_mailingSave);
+		mailingController.v_mailingSave);
 	
 	app.get('/api/v1/mailing/:mailingid/history',
 		userController.isAuthenticated,
-		adminController.v_mailingHistory);
+		mailingController.v_mailingHistory);
 	app.get('/api/v1/mailing/:mailingid/approval',
 		userController.isAuthenticated,
-		adminController.v_mailingApproval);
+		mailingController.v_mailingApproval);
 	app.get('/api/v1/mailing/:mailingid/approved',
 		userController.isAuthenticated,
-		adminController.v_mailingApproved);
+		mailingController.v_mailingApproved);
+	app.get('/api/v1/mailing/:mailingid/cancel',
+		userController.isAuthenticated,
+		mailingController.v_mailingCancelled);
 	app.get('/api/v1/mailing/:mailingid/sendToSubs',
 		userController.isAuthenticated,
-		adminController.v_mailingSendToSub);
+		mailingController.v_mailingSendToSub);
 	
 	/**
 	 * SMTP Mail routes.

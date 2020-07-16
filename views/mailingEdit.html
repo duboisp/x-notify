@@ -79,6 +79,9 @@
 				{{#showSendToSubs}}
 					<li style="margin-top:1em;"><a href="sendToSubs">Send the mailing to all subscribers</a></li>
 				{{/showSendToSubs}}
+				{{^showSendToSubs}}
+					<li style="margin-top:1em;"><a href="cancel">Cancel/archive this mailing</a></li>
+				{{/showSendToSubs}}
 			</ul>
 			{{^showCancelSend}}
 			{{/showCancelSend}}
